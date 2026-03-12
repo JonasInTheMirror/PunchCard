@@ -282,16 +282,7 @@ export const fetchUserSettings = async (username: string) => {
  */
 export const deleteDailyRecord = async (username: string, dateStr: string) => {
   return debouncedRequest(`deleteDailyRecord-${username}-${dateStr}`, async () => {
-    // First, delete the summary
-    const { error: summaryError } = await supabase
-      .from('daily_summary')
-      .delete()
-      .eq('username', username)
-      .eq('punch_date', dateStr);
-
-    if (summaryError) throw summaryError;
-
-    // Then, delete all raw punches for that Taiwan date
+    // We only need to delete raw punches; the vw_punch_dashboard view calculates automatically
     const startUTC = convertTaiwanToUTC(dateStr, '00:00:00');
     const endUTC = convertTaiwanToUTC(dateStr, '23:59:59');
 
@@ -303,6 +294,13 @@ export const deleteDailyRecord = async (username: string, dateStr: string) => {
       .lt('created_at', endUTC);
 
     if (rawError) throw rawError;
+
+    // We also delete PTO records for that day to be completely thorough
+    await supabase
+      .from('user_pto')
+      .delete()
+      .eq('username', username)
+      .eq('pto_date', dateStr);
 
     return true;
   });

@@ -491,7 +491,10 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
               </button>
             </div>
             <form onSubmit={handlePto} className="space-y-4">
-              <DatePicker name="date" value={selectedDate} onChange={() => {}} />
+              <div className="w-full">
+                <DatePicker value={selectedDate} onChange={setSelectedDate} />
+              </div>
+              <input type="hidden" name="date" value={selectedDate} />
               <input type="number" name="hours" min="0.5" max="9" step="0.5" required className="w-full bg-[#0A0A0A] p-4 rounded-2xl border border-[#2C2C2E] text-white outline-none focus:border-[#0A84FF]" placeholder={t('hours')} />
               <button type="submit" className="w-full bg-[#0A84FF] text-white py-4 rounded-2xl font-medium">{t('submit')}</button>
               <button type="button" onClick={() => setShowPto(false)} className="w-full py-3 text-gray-500 hover:text-white">{t('cancel')}</button>
