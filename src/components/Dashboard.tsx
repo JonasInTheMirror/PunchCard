@@ -179,11 +179,18 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
     const date = formData.get('date') as string;
     const hours = Number(formData.get('hours'));
     if (date && hours) {
+      // Optimistic UI
+      setShowPto(false);
+      if (date === selectedDate) {
+        setData((d: any) => d ? { ...d, hours_off: hours } : d);
+      }
       try {
         await logLeaveHours(username, date, hours);
-        setShowPto(false);
         fetchStatus();
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err);
+        fetchStatus(); // fallback 
+      }
     }
   };
 
@@ -203,23 +210,37 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
 
   // Delete Specific Raw Punch
   const handleDeletePunch = async (id: number) => {
+    // Optimistic UI
+    setConfirmDelete({ isOpen: false, id: null });
+    const prev = [...rawPunchesForToday];
+    setRawPunchesForToday(p => p.filter(x => x.id !== id));
+
     try {
       await deleteSpecificPunch(id);
-      // Refresh dashboard background (which now also refreshes rawPunchesForToday)
       fetchStatus();
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+      setRawPunchesForToday(prev);
+    }
   };
 
   // Delete Specific PTO Record
   const handleDeletePto = async (date: string) => {
+    // Optimistic UI
+    setConfirmDeletePto({ isOpen: false, date: null });
+    const prev = [...userPtos];
+    setUserPtos(p => p.filter(x => x.pto_date !== date));
+    if (date === selectedDate) {
+      setData((d: any) => d ? { ...d, hours_off: 0 } : d);
+    }
+
     try {
       await deletePtoRecord(username, date);
-      // Refresh list inside modal
-      const records = await fetchUserPto(username);
-      setUserPtos(records);
-      // Refresh dashboard background
       fetchStatus();
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+      setUserPtos(prev);
+    }
   };
 
   // Status calculation

@@ -59,10 +59,18 @@ export function HistoryList({ username }: { username: string }) {
   }, [fetchHistory, month, username]);
 
   const handleDelete = async (date: string) => {
+    // Optimistic UI
+    setConfirmDelete({ isOpen: false, date: null });
+    const prev = [...history];
+    setHistory(h => h.filter(x => x.punch_date !== date));
+
     try {
       await deleteDailyRecord(username, date);
       fetchHistory();
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+      setHistory(prev);
+    }
   };
 
   return (
