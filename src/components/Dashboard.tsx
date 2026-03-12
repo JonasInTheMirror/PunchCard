@@ -19,6 +19,7 @@ import { DatePicker } from './DatePicker';
 import { TimePicker } from './TimePicker';
 import { SettingsModal } from './SettingsModal';
 import { ConfirmModal } from './ConfirmModal';
+import { supabase } from '../lib/supabase';
 
 const calculatePunchedSeconds = (punches: any[]) => {
   // punches are in descending order (latest first)
@@ -75,10 +76,34 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
   }, [username, selectedDate]);
 
   useEffect(() => { 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // 1. STATE SYNC: Always fetch the latest truth the moment the component mounts
     setMounted(true);
     fetchStatus(); 
-  }, [fetchStatus]);
+
+    // 2. REALTIME: Open the WebSocket to listen for live changes
+    const punchChannel = supabase
+      .channel('custom-punch-channel')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', // Listen to INSERT, UPDATE, and DELETE
+          schema: 'public', 
+          table: 'raw_punches',
+          filter: `username=eq.${username}` // Only listen to YOUR punches
+        },
+        (payload) => {
+          console.log('Realtime Event Caught!', payload);
+          // When a new punch happens (like from MacroDroid), re-fetch the dashboard math!
+          fetchStatus(); 
+        }
+      )
+      .subscribe();
+
+    // 3. CLEANUP: When you close the app, destroy the WebSocket so it doesn't leak memory
+    return () => {
+      supabase.removeChannel(punchChannel);
+    };
+  }, [fetchStatus, username]);
 
   // Real-time clock for "Live" updates
   useEffect(() => {
@@ -290,7 +315,11 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
       </div>
 
       {/* Punch Button */}
-      <button onClick={() => handlePunch()} className="bg-[#0A84FF] hover:bg-blue-600 active:scale-95 transition-all rounded-2xl p-3 flex flex-col items-center justify-center gap-1 w-full mb-2">
+      <button 
+        onClick={() => handlePunch()} 
+        onMouseEnter={() => fetchStatus()} // Pre-fetch on hover for maximum speed
+        className="bg-[#0A84FF] hover:bg-blue-600 active:scale-95 transition-all rounded-2xl p-3 flex flex-col items-center justify-center gap-1 w-full mb-2"
+      >
         <Fingerprint size={24} className="text-white" />
         <span className="text-white font-medium text-sm">{t('punch')}</span>
       </button>

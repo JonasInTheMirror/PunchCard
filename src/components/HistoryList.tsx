@@ -6,6 +6,7 @@ import { useLanguage } from './LanguageContext';
 import { formatSeconds, formatDate, formatTime } from '../lib/formatters';
 import { fetchMonthlyHistory, deleteDailyRecord, fetchUserSettings } from '../lib/api';
 import { ConfirmModal } from './ConfirmModal';
+import { supabase } from '../lib/supabase';
 
 export function HistoryList({ username }: { username: string }) {
   const { t } = useLanguage();
@@ -28,9 +29,34 @@ export function HistoryList({ username }: { username: string }) {
   }, [username, month]);
 
   useEffect(() => { 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchHistory(); 
-  }, [fetchHistory]);
+    // 1. Initial State Fetch
+    if (month) {
+      fetchHistory(); 
+    }
+
+    // 2. Real-time Subscription for Instant Sync
+    const historyChannel = supabase
+      .channel('history-punch-channel')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', // Insert, Update, Delete
+          schema: 'public', 
+          table: 'raw_punches',
+          filter: `username=eq.${username}`
+        },
+        () => {
+          console.log('[History] Realtime edit detected! Refreshing list.');
+          fetchHistory(); // Re-fetch all data on change
+        }
+      )
+      .subscribe();
+
+    // 3. Cleanup WebSocket
+    return () => {
+      supabase.removeChannel(historyChannel);
+    };
+  }, [fetchHistory, month, username]);
 
   const handleDelete = async (date: string) => {
     try {
