@@ -292,8 +292,30 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
     }
   }
 
-  if (data?.start_display && data.start_display !== "--:--:--" && settings?.shift_start) {
-    const punchTime = new Date(`1970-01-01T${data.start_display}`);
+  let displayStart = data?.start_display;
+  let displayEnd = data?.end_display;
+
+  if (isToday) {
+    if (rawPunchesForToday.length > 0) {
+      const firstPunch = rawPunchesForToday[rawPunchesForToday.length - 1];
+      const lastPunch = rawPunchesForToday[0];
+      
+      const formatLocalTime = (ts: string) => {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return ts;
+        return d.toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour12: false});
+      };
+      
+      displayStart = formatLocalTime(firstPunch.created_at);
+      displayEnd = formatLocalTime(lastPunch.created_at);
+    } else {
+      displayStart = "--:--:--";
+      displayEnd = "--:--:--";
+    }
+  }
+
+  if (displayStart && displayStart !== "--:--:--" && settings?.shift_start) {
+    const punchTime = new Date(`1970-01-01T${displayStart}`);
     const shiftStart = new Date(`1970-01-01T${settings.shift_start}`);
     const diffMinutes = (punchTime.getTime() - shiftStart.getTime()) / 60000;
 
@@ -356,7 +378,7 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
         
         {/* The status text below the timer */}
         <p className="text-xs font-medium">
-          {data?.start_display === "--:--:--" 
+          {displayStart === "--:--:--" 
             ? <span className="text-gray-500">{t('notPunched')}</span> 
             : (displayShortageSeconds === 0 && displayActualSeconds > 0)
               ? <span className="text-[#34C759]">下班！ (Goal Reached)</span>
@@ -399,10 +421,10 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
              <span>{t('start')}</span>
              <span>{t('end')}</span>
            </div>
-           {data?.start_display && data.start_display !== "--:--:--" ? (
+           {displayStart && displayStart !== "--:--:--" ? (
              <div className="grid grid-cols-2 w-full text-center font-mono text-base">
-                <span>{formatTime(data?.start_display)}</span>
-                <span>{data?.end_display === data?.start_display ? "" : formatTime(data?.end_display)}</span>
+                <span>{formatTime(displayStart)}</span>
+                <span>{displayEnd === displayStart ? "" : formatTime(displayEnd)}</span>
              </div>
            ) : (
              <p className="text-gray-500 text-xs">{t('noPunchTime')}</p>
