@@ -51,7 +51,12 @@ function MainApp() {
     <div className="h-screen bg-[#000000] text-white font-sans overflow-hidden flex flex-col relative">
       <main className="flex-1 overflow-hidden relative">
         <div className="absolute inset-0 overflow-y-auto p-2 pb-32">
-          {activeTab === 'home' ? <Dashboard username={username} onLogout={handleLogout} /> : <HistoryList username={username} />}
+          <div className={activeTab === 'home' ? 'block' : 'hidden'}>
+            <Dashboard username={username} onLogout={handleLogout} />
+          </div>
+          <div className={activeTab === 'history' ? 'block' : 'hidden'}>
+            <HistoryList username={username} />
+          </div>
         </div>
       </main>
 
