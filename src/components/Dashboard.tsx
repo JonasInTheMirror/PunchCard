@@ -400,7 +400,7 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
            {displayStart && displayStart !== "--:--:--" ? (
              <div className="grid grid-cols-2 w-full text-center font-mono text-base">
                 <span>{formatTime(displayStart)}</span>
-                <span>{displayEnd === displayStart ? "" : formatTime(displayEnd)}</span>
+                <span>{displayEnd === displayStart ? "" : (displayShortageSeconds === 0 ? formatTime(displayEnd) : "--:--:--")}</span>
              </div>
            ) : (
              <p className="text-gray-500 text-xs">{t('noPunchTime')}</p>

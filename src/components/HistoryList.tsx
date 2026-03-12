@@ -142,7 +142,7 @@ export function HistoryList({ username, syncId }: { username: string, syncId: nu
               <div className="flex justify-between items-center text-[10px] text-gray-400 font-mono">
                 <div className="flex gap-3">
                   <span>{t('start')}: {formatTime(item.start_display)}</span>
-                  <span>{t('end')}: {(item.end_display === item.start_display && item.start_display !== "--:--:--") ? "" : formatTime(item.end_display)}</span>
+                  <span>{t('end')}: {(item.end_display === item.start_display && item.start_display !== "--:--:--") ? "" : (item.is_goal_reached ? formatTime(item.end_display) : "--:--:--")}</span>
                 </div>
                 <span className="text-[#FF9F0A] font-bold">{workDuration}</span>
               </div>

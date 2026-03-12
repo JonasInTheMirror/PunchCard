@@ -104,6 +104,8 @@ export const fetchMonthlyHistory = async (username: string, monthYearStr: string
     const first = new Date(todayRaw[0].created_at);
     const last = new Date(todayRaw[todayRaw.length - 1].created_at);
     const actualSeconds = todayRaw.length > 1 ? (last.getTime() - first.getTime()) / 1000 : 0;
+    const targetSeconds = reqHours * 3600;
+    const isGoalReached = actualSeconds >= targetSeconds;
     
     validData.push({
       username,
@@ -111,7 +113,8 @@ export const fetchMonthlyHistory = async (username: string, monthYearStr: string
       start_display: first.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }),
       end_display: todayRaw.length > 1 ? last.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }) : "--:--:--",
       actual_seconds: actualSeconds,
-      target_seconds: reqHours * 3600
+      target_seconds: targetSeconds,
+      is_goal_reached: isGoalReached
     });
   }
 
@@ -131,6 +134,7 @@ export const fetchMonthlyHistory = async (username: string, monthYearStr: string
       ...row, 
       hours_off: hoursOff,
       target_seconds: targetSec,
+      is_goal_reached: row.is_goal_reached ?? (actualSec >= targetSec),
       shortage_display: formatSeconds(shortageSec)
     };
   });
