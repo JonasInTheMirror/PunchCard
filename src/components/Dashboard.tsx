@@ -92,12 +92,24 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
           filter: `username=eq.${username}` // Only listen to YOUR punches
         },
         (payload) => {
-          console.log('Realtime Event Caught!', payload);
+          console.log('[Realtime] Payload Received!', payload.eventType, payload.new || payload.old);
           // When a new punch happens (like from MacroDroid), re-fetch the dashboard math!
           fetchStatus(); 
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] ✅ Successfully connected to Supabase WebSockets');
+        } else if (status === 'CLOSED') {
+          console.log('[Realtime] 🔌 Connection closed');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[Realtime] ❌ Channel Error:', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('[Realtime] ⏱️ Connection Timed Out');
+        } else {
+          console.log('[Realtime] 🔄 Status changed:', status);
+        }
+      });
 
     // 3. CLEANUP: When you close the app, destroy the WebSocket so it doesn't leak memory
     return () => {

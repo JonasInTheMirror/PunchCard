@@ -45,12 +45,24 @@ export function HistoryList({ username }: { username: string }) {
           table: 'raw_punches',
           filter: `username=eq.${username}`
         },
-        () => {
-          console.log('[History] Realtime edit detected! Refreshing list.');
+        (payload) => {
+          console.log('[History] Realtime edit detected! Payload:', payload.eventType);
           fetchHistory(); // Re-fetch all data on change
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[History] ✅ Successfully connected to Supabase WebSockets');
+        } else if (status === 'CLOSED') {
+          console.log('[History] 🔌 Connection closed');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[History] ❌ Channel Error:', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('[History] ⏱️ Connection Timed Out');
+        } else {
+          console.log('[History] 🔄 Status changed:', status);
+        }
+      });
 
     // 3. Cleanup WebSocket
     return () => {
