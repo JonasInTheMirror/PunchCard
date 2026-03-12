@@ -6,9 +6,9 @@ import { useLanguage } from './LanguageContext';
 import { formatSeconds, formatDate, formatTime } from '../lib/formatters';
 import { fetchMonthlyHistory, deleteDailyRecord, fetchUserSettings } from '../lib/api';
 import { ConfirmModal } from './ConfirmModal';
-import { supabase } from '../lib/supabase';
+// lib/supabase removed as it is now handled globally in App.tsx
 
-export function HistoryList({ username }: { username: string }) {
+export function HistoryList({ username, syncId }: { username: string, syncId: number }) {
   const { t } = useLanguage();
   const [history, setHistory] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
@@ -29,46 +29,11 @@ export function HistoryList({ username }: { username: string }) {
   }, [username, month]);
 
   useEffect(() => { 
-    // 1. Initial State Fetch
+    // STATE SYNC: Re-fetch whenever the global syncId changes, month changes, or username changes
     if (month) {
       fetchHistory(); 
     }
-
-    // 2. Real-time Subscription for Instant Sync
-    const historyChannel = supabase
-      .channel('history-punch-channel')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', // Insert, Update, Delete
-          schema: 'public', 
-          table: 'raw_punches',
-          filter: `username=eq.${username}`
-        },
-        (payload) => {
-          console.log('[History] Realtime edit detected! Payload:', payload.eventType);
-          fetchHistory(); // Re-fetch all data on change
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[History] ✅ Successfully connected to Supabase WebSockets');
-        } else if (status === 'CLOSED') {
-          console.log('[History] 🔌 Connection closed');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[History] ❌ Channel Error:', err);
-        } else if (status === 'TIMED_OUT') {
-          console.error('[History] ⏱️ Connection Timed Out');
-        } else {
-          console.log('[History] 🔄 Status changed:', status);
-        }
-      });
-
-    // 3. Cleanup WebSocket
-    return () => {
-      supabase.removeChannel(historyChannel);
-    };
-  }, [fetchHistory, month, username]);
+  }, [fetchHistory, month, username, syncId]);
 
   const handleDelete = async (date: string) => {
     // Optimistic UI

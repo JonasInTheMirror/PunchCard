@@ -3,11 +3,13 @@ import { Home, History } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { HistoryList } from './components/HistoryList';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
+import { supabase } from './lib/supabase';
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState<'home' | 'history'>('home');
   const [username, setUsername] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [syncId, setSyncId] = useState(0);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -17,6 +19,48 @@ function MainApp() {
       setIsLoggedIn(true);
     }
   }, [isLoggedIn]);
+
+  // FORCE REFRESH ON TAB SWITCH: 
+  // Whenever the user toggles between Home/History, increment syncId.
+  // This triggers fetchStatus() in Dashboard and fetchHistory() in HistoryList.
+  useEffect(() => {
+    setSyncId(prev => prev + 1);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !username) return;
+
+    console.log('[App] Starting Global Realtime Sync for:', username);
+    
+    const channel = supabase
+      .channel('global-sync')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'raw_punches',
+          filter: `username=eq.${username}`
+        },
+        (payload) => {
+          console.log('[App] 🔄 Change detected in raw_punches! Payload:', payload.eventType);
+          // Increment syncId to trigger children to re-fetch
+          setSyncId(prev => prev + 1);
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[App] ✅ Global Realtime Subscribed');
+        } else {
+          console.log('[App] 📡 Global Realtime Status:', status, err || '');
+        }
+      });
+
+    return () => {
+      console.log('[App] Cleaning up Global Realtime');
+      supabase.removeChannel(channel);
+    };
+  }, [isLoggedIn, username]);
 
   const handleLogout = () => {
     localStorage.removeItem('punch_username');
@@ -52,10 +96,10 @@ function MainApp() {
       <main className="flex-1 overflow-hidden relative">
         <div className="absolute inset-0 overflow-y-auto p-2 pb-32">
           <div className={activeTab === 'home' ? 'block' : 'hidden'}>
-            <Dashboard username={username} onLogout={handleLogout} />
+            <Dashboard username={username} onLogout={handleLogout} syncId={syncId} />
           </div>
           <div className={activeTab === 'history' ? 'block' : 'hidden'}>
-            <HistoryList username={username} />
+            <HistoryList username={username} syncId={syncId} />
           </div>
         </div>
       </main>

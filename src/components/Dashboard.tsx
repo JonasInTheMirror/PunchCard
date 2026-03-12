@@ -19,7 +19,7 @@ import { DatePicker } from './DatePicker';
 import { TimePicker } from './TimePicker';
 import { SettingsModal } from './SettingsModal';
 import { ConfirmModal } from './ConfirmModal';
-import { supabase } from '../lib/supabase';
+// lib/supabase removed as it is now handled globally in App.tsx
 
 const calculatePunchedSeconds = (punches: any[]) => {
   // punches are in descending order (latest first)
@@ -35,7 +35,7 @@ const calculatePunchedSeconds = (punches: any[]) => {
   return total;
 };
 
-export function Dashboard({ username }: { username: string, onLogout: () => void }) {
+export function Dashboard({ username, syncId }: { username: string, syncId: number, onLogout: () => void }) {
   const { t } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
@@ -76,46 +76,10 @@ export function Dashboard({ username }: { username: string, onLogout: () => void
   }, [username, selectedDate]);
 
   useEffect(() => { 
-    // 1. STATE SYNC: Always fetch the latest truth the moment the component mounts
+    // STATE SYNC: Re-fetch whenever the global syncId changes or username/date changes
     setMounted(true);
     fetchStatus(); 
-
-    // 2. REALTIME: Open the WebSocket to listen for live changes
-    const punchChannel = supabase
-      .channel('custom-punch-channel')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', // Listen to INSERT, UPDATE, and DELETE
-          schema: 'public', 
-          table: 'raw_punches',
-          filter: `username=eq.${username}` // Only listen to YOUR punches
-        },
-        (payload) => {
-          console.log('[Realtime] Payload Received!', payload.eventType, payload.new || payload.old);
-          // When a new punch happens (like from MacroDroid), re-fetch the dashboard math!
-          fetchStatus(); 
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Successfully connected to Supabase WebSockets');
-        } else if (status === 'CLOSED') {
-          console.log('[Realtime] 🔌 Connection closed');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[Realtime] ❌ Channel Error:', err);
-        } else if (status === 'TIMED_OUT') {
-          console.error('[Realtime] ⏱️ Connection Timed Out');
-        } else {
-          console.log('[Realtime] 🔄 Status changed:', status);
-        }
-      });
-
-    // 3. CLEANUP: When you close the app, destroy the WebSocket so it doesn't leak memory
-    return () => {
-      supabase.removeChannel(punchChannel);
-    };
-  }, [fetchStatus, username]);
+  }, [fetchStatus, username, syncId]);
 
   // Real-time clock for "Live" updates
   useEffect(() => {

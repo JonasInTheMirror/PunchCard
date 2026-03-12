@@ -64,10 +64,6 @@ export const fetchDashboardByDate = async (username: string, dateStr: string) =>
   return dashboardData;
 };
 
-/**
- * 3. GET MONTHLY HISTORY & TOTAL SHORTAGE
- * Used for the "歷史紀錄" page and the header statistics.
- */
 export const fetchMonthlyHistory = async (username: string, monthYearStr: string) => {
   // monthYearStr format: '2026-03'
   const startDate = `${monthYearStr}-01`;
@@ -83,17 +79,41 @@ export const fetchMonthlyHistory = async (username: string, monthYearStr: string
   }
   const endDate = `${year}-${month.toString().padStart(2, '0')}-01`;
 
-  const [historyRes, ptoRes, settingsRes] = await Promise.all([
+  // Get today's date in Taiwan (YYYY-MM-DD)
+  const todayTaiwan = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(new Date());
+
+  const [historyRes, ptoRes, settingsRes, todayPunchesRes] = await Promise.all([
     supabase.from('vw_punch_dashboard').select('*').eq('username', username).gte('punch_date', startDate).lt('punch_date', endDate).order('punch_date', { ascending: false }),
     supabase.from('user_pto').select('*').eq('username', username).gte('pto_date', startDate).lt('pto_date', endDate),
-    supabase.from('user_settings').select('required_hours').eq('username', username).maybeSingle()
+    supabase.from('user_settings').select('required_hours').eq('username', username).maybeSingle(),
+    supabase.from('raw_punches').select('created_at').eq('username', username).gte('created_at', `${todayTaiwan}T00:00:00+08:00`).lt('created_at', `${todayTaiwan}T23:59:59+08:00`).order('created_at', { ascending: true })
   ]);
 
   if (historyRes.error) throw historyRes.error;
 
-  const validData = historyRes.data || [];
+  // SOURCE OF TRUTH: For today, we ignore the lagging View and calculate from raw punches
+  let validData = (historyRes.data || []).filter((d: any) => d.punch_date !== todayTaiwan);
   const ptoData = ptoRes.data || [];
   const reqHours = settingsRes.data?.required_hours || 9;
+  const todayRaw = todayPunchesRes.data || [];
+
+  const isMonthActive = monthYearStr === todayTaiwan.substring(0, 7);
+
+  if (isMonthActive && todayRaw.length > 0) {
+    console.log('[API] Calculating today status from raw punches (bypassing View)');
+    const first = new Date(todayRaw[0].created_at);
+    const last = new Date(todayRaw[todayRaw.length - 1].created_at);
+    const actualSeconds = todayRaw.length > 1 ? (last.getTime() - first.getTime()) / 1000 : 0;
+    
+    validData.push({
+      username,
+      punch_date: todayTaiwan,
+      start_display: first.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }),
+      end_display: todayRaw.length > 1 ? last.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }) : "--:--:--",
+      actual_seconds: actualSeconds,
+      target_seconds: reqHours * 3600
+    });
+  }
 
   const ptoMap = new Map(ptoData.map(p => [p.pto_date, p.hours_off]));
   
@@ -144,6 +164,7 @@ export const fetchMonthlyHistory = async (username: string, monthYearStr: string
     daysWorked: logsWithPto.length
   };
 };
+
 
 /**
  * 4. LOG PTO / LEAVE (Hourly Units)
