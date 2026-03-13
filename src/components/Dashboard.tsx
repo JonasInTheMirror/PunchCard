@@ -306,15 +306,36 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
 
   return (
     <div className="flex flex-col animate-in fade-in duration-500 max-w-md mx-auto relative">
-      <header className="mb-2 flex justify-between items-center">
+      <header className="mb-4 flex justify-between items-center">
         <div>
           <h3 className="text-[#0A84FF] text-[10px] uppercase font-bold tracking-widest mb-0.5">{t('systemName')}</h3>
           <h1 className="text-xl font-bold tracking-tight text-white">{t('dashboard')}</h1>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowPto(true)} className="p-1.5 bg-[#1C1C1E] rounded-full hover:bg-[#2C2C2E] transition-colors">
-            <Calendar size={18} />
+        <div className="flex gap-2 items-center">
+          {/* PTO Button - palm tree */}
+          <button onClick={() => setShowPto(true)} className="p-1.5 bg-[#1C1C1E] rounded-full hover:bg-[#2C2C2E] transition-colors text-lg leading-none flex items-center justify-center w-9 h-9">
+            🌴
           </button>
+          {/* Date Picker as calendar icon */}
+          <div className="relative w-9 h-9">
+            <button
+              className="w-9 h-9 bg-[#1C1C1E] rounded-full hover:bg-[#2C2C2E] transition-colors flex items-center justify-center"
+              onClick={() => {
+                const picker = document.getElementById('header-date-picker');
+                if (picker) picker.click();
+              }}
+            >
+              <Calendar size={18} />
+            </button>
+            <input
+              id="header-date-picker"
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </div>
+          {/* Settings Button */}
           <button onClick={() => setShowSettings(true)} className="p-1.5 bg-[#1C1C1E] rounded-full hover:bg-[#2C2C2E] transition-colors">
             <Settings size={18} />
           </button>
@@ -323,25 +344,11 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} username={username} onLogout={() => window.location.reload()} />}
 
-      {/* Date Selector Card */}
-      <div className="bg-[#1C1C1E] rounded-2xl p-3 border border-[#2C2C2E] mb-2">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-gray-400">{t('punchDate')} : {selectedDate.replace(/-/g, '/')}</p>
-          <div className="w-32">
-            <DatePicker value={selectedDate} onChange={setSelectedDate} />
-          </div>
-        </div>
+      {/* Selected Date - Big Centered Display */}
+      <div className="mb-3 text-center">
+        <p className="text-2xl font-bold tracking-tight text-white">{selectedDate.replace(/-/g, '/')}</p>
+        <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">{t('punchDate')}</p>
       </div>
-
-      {/* Punch Button */}
-      <button 
-        onClick={() => handlePunch()} 
-        onMouseEnter={() => fetchStatus()} // Pre-fetch on hover for maximum speed
-        className="bg-[#0A84FF] hover:bg-blue-600 active:scale-95 transition-all rounded-2xl p-3 flex flex-col items-center justify-center gap-1 w-full mb-2"
-      >
-        <Fingerprint size={24} className="text-white" />
-        <span className="text-white font-medium text-sm">{t('punch')}</span>
-      </button>
 
       {/* Time Worked Card (Glance Section) */}
       <div className="bg-[#1C1C1E] rounded-3xl p-8 border border-[#2C2C2E] mb-4 flex flex-col items-center justify-center">
@@ -366,7 +373,7 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
         <div className="flex flex-wrap gap-2 mt-4 justify-center">
           {data?.hours_off > 0 && (
             <div className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#0A84FF]/20 text-[#0A84FF] flex items-center gap-1">
-              <Calendar size={10} />
+              <span>🌴</span>
               <span>{t('pto')}: {data.hours_off}hr</span>
             </div>
           )}
@@ -379,7 +386,7 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
       </div>
 
       {/* Daily Details */}
-      <div className="bg-[#1C1C1E] rounded-2xl p-3 border border-[#2C2C2E]">
+      <div className="bg-[#1C1C1E] rounded-2xl p-3 border border-[#2C2C2E] mb-4">
         <div className="flex justify-between items-center mb-3">
           <p className="text-xs font-medium text-gray-400">{t('dailyDetails')}</p>
           <div className="flex gap-2">
@@ -407,6 +414,16 @@ export function Dashboard({ username, syncId }: { username: string, syncId: numb
            )}
         </div>
       </div>
+
+      {/* Punch Button — at the bottom */}
+      <button 
+        onClick={() => handlePunch()} 
+        onMouseEnter={() => fetchStatus()}
+        className="bg-[#0A84FF] hover:bg-blue-600 active:scale-95 transition-all rounded-2xl p-4 flex flex-col items-center justify-center gap-1 w-full mb-2"
+      >
+        <Fingerprint size={28} className="text-white" />
+        <span className="text-white font-bold text-base">{t('punch')}</span>
+      </button>
 
       {/* MODAL: Manual Punch Picker */}
       {showManual && mounted && createPortal(
